@@ -20,7 +20,7 @@ impl ServiceError {
                 status,
                 message,
                 status_code,
-                data: String::new(),
+                data: Some(String::new()),
             },
         }
     }

@@ -37,3 +37,4 @@ chrono-tz = "0.8.3"
 uuid = {version = "1.4.1", features = ["v4","serde"]}
 
 bcrypt = "0.15"
+tokio = { version = "1.32.0", features = ["full"] }

@@ -13,7 +13,6 @@ use futures::{select, FutureExt};
 use std::error::Error;
 
 use crate::middlewares::auth_middleware::Authentication;
-
 /**
  * Load internal modules
  **/
@@ -37,9 +36,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     let api_host = dotenv::var("API_HOST").unwrap();
 
-    //Redis
-    // let redis = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+    // Redis
+    let redis = redis::Client::open("redis://127.0.0.1:6379").unwrap();
 
+    // Create connection for PostgreSQL
     let config =
         AsyncDieselConnectionManager::<AsyncPgConnection>::new(std::env::var("DATABASE_URL")?);
     let pool = Pool::builder(config).build()?;
@@ -48,6 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         App::new()
             .wrap(Authentication)
             .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(redis.clone()))
             .configure(routers::app::config_services)
     })
     .bind(api_host)?

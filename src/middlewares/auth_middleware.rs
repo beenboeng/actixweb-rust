@@ -72,92 +72,50 @@ where
                 }
             }
 
-            
             if !authenticate_pass {
-
                 if let Some(pool) = reqs.app_data::<Data<Pool<AsyncPgConnection>>>() {
-                    //info!("Connecting to database...");
-                    if let Some(authen_header) = reqs.headers().get(constants::AUTHORIZATION) {
-                    
-                        //info!("Parsing authorization header...");
-                        if let Ok(authen_str) = authen_header.to_str() {
-
-                            if authen_str.starts_with("bearer") || authen_str.starts_with("Bearer")
-                            {
-                                // Get token by remove "bearer or Bearer" 
-                                let token = authen_str[6..authen_str.len()].trim();
-                                
-
-                                // Start decode user token 
-                                if let Ok(token_data) =
-                                    jwt_token_util::decode_user_token(token.to_string())
-                                {
-                                    let user_token = token_data.claims.clone();
-
-                                    //info!("Decoding token...");
-                                    let jwtvfyres = JwtService::verify_user_token(
-                                        &user_token,
-                                        pool.as_ref(),
-                                    )
-                                    .await;
-
-                                    match jwtvfyres {
-                                        Ok(_jwtres) => {
-                                            authenticate_pass = true;
-                                        }
-                                        Err(_error) => {
-                                            authenticate_pass = false;
-                                        }
-                                    }
-                                    let user_login_context = UserLoginedContext {
-                                        iat: user_token.iat,
-                                        exp: user_token.exp,
-                                        id: user_token.id,
-                                        user_name: user_token.user_name.clone(),
-                                        login_session: user_token.login_session.clone(),
-                                    };
-                                    req.extensions_mut().insert(user_login_context);
-                                }
-                            }
-                        }
-                    } else {
-                        //info!("WebSocket...");
-                        if let Some(authen_header) =
-                            reqs.headers().get(constants::SECWEBSOCKETPROTOCOL)
-                        {
-                            //info!("Parsing Js WebSocket authorization header:{:#?}",authen_header);
+                    if let Some(redis) = reqs.app_data::<Data<redis::Client>>() {
+                        //info!("Connecting to database...");
+                        if let Some(authen_header) = reqs.headers().get(constants::AUTHORIZATION) {
+                            //info!("Parsing authorization header...");
                             if let Ok(authen_str) = authen_header.to_str() {
-                                //info!("Parsing token...");
-                                let parts: Vec<&str> = authen_str.split(',').collect();
-                                let token = parts[1].trim();
-                                if let Ok(token_data) =
-                                    jwt_token_util::decode_user_token(token.to_string())
+                                if authen_str.starts_with("bearer")
+                                    || authen_str.starts_with("Bearer")
                                 {
-                                    let user_token = token_data.claims.clone();
-                                    //info!("Decoding token...");
-                                    let jwtvfyres = JwtService::verify_user_token(
-                                        &user_token,
-                                        pool.as_ref(),
-                                    )
-                                    .await;
-                                    match jwtvfyres {
-                                        Ok(_jwtres) => {
-                                            //info!("Valid token");
-                                            authenticate_pass = true;
-                                        }
-                                        Err(_error) => {
-                                            authenticate_pass = false;
-                                        }
-                                    }
+                                    // Get token by remove "bearer or Bearer"
+                                    let token = authen_str[6..authen_str.len()].trim();
 
-                                    let user_login_context = UserLoginedContext {
-                                        iat: user_token.iat,
-                                        exp: user_token.exp,
-                                        id: user_token.id,
-                                        user_name: user_token.user_name.clone(),
-                                        login_session: user_token.login_session.clone(),
-                                    };
-                                    req.extensions_mut().insert(user_login_context);
+                                    // Start decode user token
+                                    if let Ok(token_data) =
+                                        jwt_token_util::decode_user_token(token.to_string())
+                                    {
+                                        let user_token = token_data.claims.clone();
+
+                                        //info!("Decoding token...");
+                                        let jwtvfyres = JwtService::verify_user_token(
+                                            &user_token,
+                                            pool.as_ref(),
+                                            redis,
+                                        )
+                                        .await;
+
+                                        match jwtvfyres {
+                                            Ok(_jwtres) => {
+                                                authenticate_pass = true;
+                                            }
+                                            Err(_error) => {
+                                                authenticate_pass = false;
+                                            }
+                                        }
+                                        let user_login_context = UserLoginedContext {
+                                            iat: user_token.iat,
+                                            exp: user_token.exp,
+                                            id: user_token.id,
+                                            user_name: user_token.user_name.clone(),
+                                            login_session: user_token.login_session.clone(),
+                                        };
+                                        req.extensions_mut().insert(user_login_context);
+                                    }
                                 }
                             }
                         }
@@ -169,7 +127,7 @@ where
             }
 
             let res = svc.call(req).await?;
-            
+
             Ok(res)
         })
     }
@@ -200,7 +158,7 @@ impl ResponseError for AuthError {
                     true,
                     constants::MESSAGE_INVALID_TOKEN,
                     -1,
-                    "",
+                    Some(""),
                 )),
         }
     }

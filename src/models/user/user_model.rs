@@ -1,4 +1,3 @@
-use actix_web::Error;
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
 use crate::schema::tbl_users;
@@ -12,6 +11,8 @@ pub struct UserInfo{
     pub user_name       : Option<String>,
     #[serde(skip_serializing)]
     pub login_session   : Option<String>,
+    #[serde(skip_serializing)]
+    pub password        : Option<String>
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserToken {
@@ -105,43 +106,5 @@ impl UserToken{
             return Err(String::from("Login session cannot be empty"));
         }
         Ok(UserToken{iat, exp, id, user_name,login_session})
-    }
-}
-
-
-impl UserResponse {
-    pub fn get_users()-> Vec<UserInfo>{
-        vec![
-            UserInfo{
-                id: 1,
-                first_name: Some("Nana".to_string()),
-                last_name: Some("Onikai".to_string()),
-                user_name: Some("Nana Onikai".to_string()),
-                login_session: Some("".to_string())
-            },
-            UserInfo{
-                id: 2,
-                first_name: Some("Lala".to_string()),
-                last_name: Some("Onikai".to_string()),
-                user_name: Some("Nana Onikai".to_string()),
-               login_session: Some("".to_string())
-            },
-            UserInfo{
-                id: 3,
-                first_name: Some("Lulu".to_string()),
-                last_name: Some("Onikai".to_string()),
-                user_name: Some("Nana Onikai".to_string()),
-               login_session: Some("".to_string())
-            }
-        ]
-    }
-
-    pub fn get_one_user(id:i32)-> Result<UserInfo, Error>{
-        let users =  UserResponse::get_users();
-        let result = users.iter().find(|&user| user.id == id);
-        match result {
-            Some(user) => Ok(user.clone()),
-            None => Err(actix_web::error::ErrorBadRequest("User not found")),
-        }
     }
 }

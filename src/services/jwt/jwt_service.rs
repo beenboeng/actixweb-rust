@@ -50,11 +50,13 @@ impl JwtService {
     pub async fn verify_user_token(
         token_data: &UserToken,
         pool: &Pool<AsyncPgConnection>,
+        redis:&redis::Client
     ) -> Result<i32, ServiceError> {
 
         let response =  UserServices.check_session(
             token_data,
-            pool
+            pool,
+            redis
         ).await;
        
         match response {
