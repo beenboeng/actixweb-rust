@@ -11,10 +11,7 @@ use crate::{
     constants,
     models::{
         http::response::ResponseBody,
-        user::{
-            self,
-            user_model::{NewUserRequest, UserLoginRequest, UserLoginResponse},
-        },
+        user::user_model::{NewUserRequest, UserLoginRequest, UserLoginResponse},
     },
     services::{jwt::jwt_service::JwtService, user::user_services::UserServices},
 };
