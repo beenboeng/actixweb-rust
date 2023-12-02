@@ -93,11 +93,6 @@ impl UserRepository {
             user_token.user_name
         );
 
-        // redis::Cmd::set("test01", "u got it")
-        // .query_async::<_, String>(&mut redis_conn)
-        // .await
-        // .map_err(|_| actix_web::error::ErrorInternalServerError("Error"))?;
-
         // Get the value from redis with key catch
         let redis_response = redis::Cmd::get(generate_catch_key)
             .query_async::<_, String>(&mut redis_conn)
@@ -109,11 +104,19 @@ impl UserRepository {
             Err(_) => None,
         };
 
+        // To check if data_catch is no null
         if !data_catch.is_none() {
-            println!("ress")
+            if data_catch.clone().unwrap() == user_token.login_session.clone() {
+                // Return if return true
+                return Ok(SessionResponse {
+                    status: vec![SessionInfo {
+                        is_success: !data_catch.is_none(),
+                    }],
+                });
+            }
         }
 
-        //Use Database
+        //Use Database if can not found in catch
         let mut conn = pool.get().await.unwrap();
         use crate::schema::tbl_users::dsl::*;
         let result_response: Vec<UserInfo> = tbl_users
@@ -191,13 +194,80 @@ impl UserRepository {
                         userlogined_info.user_name.unwrap_or_default()
                     );
 
-                    redis::Cmd::set(generate_catch_key, new_login_session.clone())
+                    redis::Cmd::set_ex(
+                        generate_catch_key,
+                        new_login_session.clone(),
+                        constants::LIFE_OF_REDIS_KEY.try_into().unwrap(),
+                    )
+                    .query_async::<_, String>(&mut redis_conn)
+                    .await
+                    .map_err(|_| actix_web::error::ErrorInternalServerError("Error"))?;
+
+                    query_result[0].login_session = Some(new_login_session);
+                }
+                Err(_err) => {
+                    return Err(actix_web::error::ErrorInternalServerError("Error"));
+                }
+            }
+        }
+
+        Ok(UserResponse {
+            users: query_result,
+        })
+    }
+
+    pub async fn kill_user_session(
+        &self,
+        user_id: i32,
+        pool: &Pool<AsyncPgConnection>,
+        redis: &redis::Client,
+    ) -> Result<UserResponse, Error> {
+
+        let mut conn = pool.get().await.unwrap();
+        use crate::schema::tbl_users::dsl::*;
+
+        // Get user to kill session 
+        let query_result: Vec<UserInfo> = tbl_users
+            .filter(id.eq(user_id))
+            .select(UserInfo::as_select())
+            .load::<UserInfo>(&mut conn)
+            .await
+            .map_err(|_| actix_web::error::ErrorInternalServerError("Error"))?;
+
+        if query_result.is_empty() {
+            // No user found with the provided username and password
+            return Err(actix_web::error::ErrorUnauthorized("User does not exist"));
+        } else {
+
+            // Update user session
+            let update_result = diesel::update(tbl_users.find(user_id))
+                .set(login_session.eq(""))
+                .execute(&mut conn)
+                .await;
+
+            match update_result {
+                Ok(_) => {
+
+                    //  Redis Connection
+                    let mut redis_conn =
+                        redis.get_tokio_connection_manager().await.map_err(|_| {
+                            actix_web::error::ErrorInternalServerError("Error redis connection!")
+                        })?;
+
+                    let userlogined_info: UserInfo = query_result[0].clone();
+
+                    // Generate key catch
+                    let generate_catch_key = format!(
+                        "{}{}{}",
+                        constants::USER_CATCH_KEY,
+                        userlogined_info.id,
+                        userlogined_info.user_name.unwrap_or_default()
+                    );
+
+                    redis::Cmd::del(generate_catch_key)
                         .query_async::<_, String>(&mut redis_conn)
                         .await
                         .map_err(|_| actix_web::error::ErrorInternalServerError("Error"))?;
-
-
-                    query_result[0].login_session = Some(new_login_session);
                 }
                 Err(_err) => {
                     return Err(actix_web::error::ErrorInternalServerError("Error"));

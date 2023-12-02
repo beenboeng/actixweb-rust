@@ -11,7 +11,10 @@ use crate::{
     constants,
     models::{
         http::response::ResponseBody,
-        user::user_model::{NewUserRequest, UserLoginRequest, UserLoginResponse},
+        user::{
+            self,
+            user_model::{NewUserRequest, UserLoginRequest, UserLoginResponse},
+        },
     },
     services::{jwt::jwt_service::JwtService, user::user_services::UserServices},
 };
@@ -55,7 +58,7 @@ pub async fn new_user(
 pub async fn user_login(
     user_params: web::Json<UserLoginRequest>,
     pool: web::Data<Pool<AsyncPgConnection>>,
-    redis: web::Data<redis::Client>
+    redis: web::Data<redis::Client>,
 ) -> Result<HttpResponse> {
     let auth_response = UserServices
         .user_login(user_params.into_inner(), pool.as_ref(), &redis)
@@ -77,6 +80,31 @@ pub async fn user_login(
                 Some(auth_login_response),
             )))
         }
+        Err(_) => Ok(HttpResponse::Unauthorized().json(ResponseBody::new(
+            false,
+            "Wrong password",
+            401,
+            Some({}),
+        ))),
+    }
+}
+
+pub async fn kill_user_session(
+    user_id: web::Path<i32>,
+    pool: web::Data<Pool<AsyncPgConnection>>,
+    redis: web::Data<redis::Client>,
+) -> Result<HttpResponse> {
+    let response = UserServices
+        .kill_user_session(user_id.into_inner(), pool.as_ref(), &redis)
+        .await;
+
+    match response {
+        Ok(user) => Ok(HttpResponse::Ok().json(ResponseBody::new(
+            true,
+            "Done kick user",
+            1,
+            Some(user),
+        ))),
         Err(_) => Ok(HttpResponse::Unauthorized().json(ResponseBody::new(
             false,
             "Wrong password",

@@ -111,4 +111,16 @@ impl UserServices {
             Err(err) => Err(actix_web::error::ErrorUnauthorized(err)),
         }
     }
+
+    pub async fn kill_user_session(
+        &self,
+        user_id: i32,
+        pool: &Pool<AsyncPgConnection>,
+        redis: &redis::Client,
+    ) -> Result<UserResponse, Error> {
+        UserRepository
+            .kill_user_session(user_id, &pool, redis)
+            .await
+            .map_err(Into::into)
+    }
 }

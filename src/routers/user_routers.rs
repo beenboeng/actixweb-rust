@@ -9,6 +9,7 @@ pub fn users_routes(users_config: &mut web::ServiceConfig) {
             .route("", web::get().to(user_api::show))
             .route("/new", web::post().to(user_api::new_user))
             .route("/login", web::post().to(user_api::user_login))
+            .route("/kill_session/{id}", web::post().to(user_api::kill_user_session))
         );
 
 }

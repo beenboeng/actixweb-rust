@@ -36,4 +36,6 @@ pub const SECWEBSOCKETPROTOCOL: &str = "Sec-WebSocket-Protocol";
 //Catches Keys
 #[allow(dead_code)]
 pub const USER_CATCH_KEY: &str = "NANO";
+#[allow(dead_code)]
+pub const LIFE_OF_REDIS_KEY: i32 = 86_400;
 

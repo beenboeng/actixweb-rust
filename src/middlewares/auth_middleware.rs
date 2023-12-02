@@ -73,8 +73,8 @@ where
             }
 
             if !authenticate_pass {
-                if let Some(pool) = reqs.app_data::<Data<Pool<AsyncPgConnection>>>() {
-                    if let Some(redis) = reqs.app_data::<Data<redis::Client>>() {
+                if let Some(redis) = reqs.app_data::<Data<redis::Client>>() {
+                    if let Some(pool) = reqs.app_data::<Data<Pool<AsyncPgConnection>>>() {
                         //info!("Connecting to database...");
                         if let Some(authen_header) = reqs.headers().get(constants::AUTHORIZATION) {
                             //info!("Parsing authorization header...");
